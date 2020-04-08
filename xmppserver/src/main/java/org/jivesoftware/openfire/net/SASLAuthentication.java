@@ -62,6 +62,7 @@ import org.jivesoftware.openfire.spi.ConnectionType;
 import org.jivesoftware.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xmlpull.v1.XmlPullParser;
 
 /**
  * SASLAuthentication is responsible for returning the available SASL mechanisms to use and for
@@ -196,6 +197,9 @@ public class SASLAuthentication {
     {
         if ( session instanceof ClientSession )
         {
+            if (!session.isForceStandardSASL())
+                return "";
+
             return getSASLMechanismsElement( (ClientSession) session ).asXML();
         }
         else if ( session instanceof LocalIncomingServerSession )
@@ -207,6 +211,26 @@ public class SASLAuthentication {
             Log.debug( "Unable to determine SASL mechanisms that are applicable to session '{}'. Unrecognized session type.", session );
             return "";
         }
+    }
+
+    /**
+     * Returns a string with the valid SASL mechanisms available for the specified session. If
+     * the session's connection is not secured then only include the SASL mechanisms that don't
+     * require TLS.
+     *
+     * @param session The current session
+     *
+     * @return a string with the valid SASL mechanisms available for the specified session.
+     */
+    public static String getSASLMechanisms(LocalSession session, XmlPullParser xpp)
+    {
+        String from = xpp.getAttributeValue("", "from");
+
+        if (from != null) {
+            session.setForceStandardSASL(from.contains(".engine.engine"));
+        }
+
+        return getSASLMechanisms(session);
     }
 
     public static Element getSASLMechanismsElement( ClientSession session )
